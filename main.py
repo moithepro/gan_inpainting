@@ -52,3 +52,5 @@ print("\nSaving the trained models...")
 generator.save(GENERATOR_PATH)
 discriminator.save(DISCRIMINATOR_PATH)
 print("Models saved successfully.")
+
+# testing VC
