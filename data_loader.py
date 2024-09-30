@@ -30,21 +30,30 @@ def load_dataset(name):
     elif name == 'cifar10':
         dataset = tfds.load('cifar10', split='train', as_supervised=True)
         dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
+    elif name == 'imagenet':
+        dataset = tfds.load('imagenet2012', split='train', as_supervised=True)
+        dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
+    elif name == 'coco':
+        dataset = tfds.load('coco/2017', split='train', as_supervised=False)
+        dataset = dataset.map(lambda x: (tf.image.resize(x['image'], [IMAGE_SIZE, IMAGE_SIZE]), x['image']))
+    elif name == 'celeba':
+        dataset = tfds.load('celeb_a', split='train', as_supervised=True)
+        dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
     else:
         raise ValueError('Dataset not recognized.')
-    
+
     # Normalize images to [-1, 1]
     dataset = dataset.map(lambda x, y: ((x / 127.5) - 1.0, y))
-    
+
     # Use image as both input and target
     dataset = dataset.map(lambda x, y: (x, x))
-    
+
     # Shuffle, batch, and prefetch
     dataset = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
-    
+
     # Get total number of batches
     total_batches = tf.data.experimental.cardinality(dataset).numpy()
-    
+
     return dataset, total_batches
 
 
