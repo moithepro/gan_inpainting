@@ -30,6 +30,15 @@ def load_dataset(name):
     elif name == 'cifar10':
         dataset = tfds.load('cifar10', split='train', as_supervised=True)
         dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
+    elif name == 'imagenet':
+        dataset = tfds.load('imagenet2012', split='train', as_supervised=True)
+        dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
+    elif name == 'coco':
+        dataset = tfds.load('coco/2017', split='train', as_supervised=True)
+        dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
+    elif name == 'celeba':
+        dataset = tfds.load('celeb_a', split='train', as_supervised=True)
+        dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
     else:
         raise ValueError('Dataset not recognized.')
     

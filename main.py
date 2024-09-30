@@ -39,7 +39,7 @@ else:
     discriminator = build_discriminator()
 
 # List of datasets in the order to be trained
-datasets = ['cifar10']
+datasets = ['coco']
 
 for dataset_name in datasets:
     print(f"\n--- Training on {dataset_name.upper()} Dataset ---")
