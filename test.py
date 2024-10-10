@@ -21,7 +21,7 @@ def load_image(file_path):
 
 def main():
     # Load the trained generator
-    generator_path = 'old_mnist/generator.h5'
+    generator_path = GENERATOR_PATH
     if not os.path.exists(generator_path):
         print("Trained generator model not found. Please train the model first.")
         return
@@ -71,19 +71,16 @@ def main():
     masked_image_np = masked_image.numpy()
     generated_image_np = generated_image.numpy()
     original_image_np = original_image.numpy()
-    
-    # Plot and save the results
-    save_path = os.path.join(RESULTS_DIR, 'inpainted_result.png')
-    plot_images(masked_image_np, generated_image_np, original_image_np, save_path)
-    
+
     # Display the images
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     titles = ['Masked Image', 'Generated Image', 'Original Image']
-    images = [masked_image_np[0], generated_image_np[0], original_image_np[0]]
+    images = [masked_image_np, generated_image_np, original_image_np]
+
     for i in range(3):
-        axes[i].imshow((images[i] + 1) / 2)  # Rescale to [0,1]
-        axes[i].set_title(titles[i])
-        axes[i].axis('off')
+            axes[i].imshow((images[i][0] + 1) / 2)  # Rescale to [0,1]
+            axes[i].set_title(titles[i])
+            axes[i].axis('off')
     plt.tight_layout()
     plt.show()
 
