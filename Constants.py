@@ -1,7 +1,7 @@
 EPOCHS = 50
 RESULTS_DIR = './results'
-GENERATOR_PATH = 'generator.h5'
-DISCRIMINATOR_PATH = 'discriminator.h5'
+GENERATOR_PATH = 'generator.keras'
+DISCRIMINATOR_PATH = 'discriminator.keras'
 IMAGE_SIZE = 128
 INITIAL_LEARNING_RATE = 0.0002
 DECAY_RATE = 0.96
