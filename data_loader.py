@@ -35,6 +35,9 @@ def load_dataset(name):
         dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
     elif name == 'coco':
         dataset = tfds.load('coco/2017', split='train', as_supervised=False)
+        # take only 1000 images for now
+        dataset = dataset.take(1000)
+        print("taking only 1000 images")
         dataset = dataset.map(lambda x: (tf.image.resize(x['image'], [IMAGE_SIZE, IMAGE_SIZE]), x['image']))
     elif name == 'celeba':
         dataset = tfds.load('celeb_a', split='train', as_supervised=True)

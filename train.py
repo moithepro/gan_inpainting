@@ -3,6 +3,7 @@ from tensorflow.keras import optimizers #type: ignore
 import os
 import numpy as np
 
+import incremental_saver
 from Constants import *
 
 from utils import calculate_metrics, plot_images
@@ -10,7 +11,23 @@ from data_loader import data_generator
 from models import build_generator, build_discriminator
 import time
 from tqdm import tqdm
+from tensorflow.keras.applications import VGG16
+vgg = VGG16(include_top=False, weights='imagenet', input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3))
 
+
+def perceptual_loss(real_images, generated_images):
+    # Preprocess the images as expected by VGG19 (scaling and mean normalization)
+    real_images_preprocessed = tf.keras.applications.vgg19.preprocess_input(real_images)
+    generated_images_preprocessed = tf.keras.applications.vgg19.preprocess_input(generated_images)
+
+    # Extract features from multiple layers of VGG19
+    vgg_outputs_real = vgg(real_images_preprocessed)
+    vgg_outputs_fake = vgg(generated_images_preprocessed)
+
+    # Compute the perceptual loss as the mean squared error between feature maps
+    perceptual_loss_value = tf.reduce_mean(tf.square(vgg_outputs_real - vgg_outputs_fake))
+
+    return perceptual_loss_value
 
 
 # Enable mixed precision (optional)
@@ -67,7 +84,7 @@ def train(dataset, epochs, dataset_name, generator=None, discriminator=None, tot
             batch_size = tf.shape(masked_images)[0]
             real_labels = tf.ones((batch_size, 1))
             fake_labels = tf.zeros((batch_size, 1))
-            
+
             with tf.GradientTape(persistent=True) as tape:
                 # Generator Forward Pass
                 generated_images = generator(masked_images, training=True)
@@ -84,14 +101,19 @@ def train(dataset, epochs, dataset_name, generator=None, discriminator=None, tot
                 # masks = tf.cast(masks, tf.float32)
 
                 # Calculate Losses
+                real_labels = tf.ones_like(real_output)  # Broadcast directly to match the shape of real_output
+                fake_labels = tf.zeros_like(fake_output)  # Same for fake labels
                 d_loss_real = bce_loss(real_labels, real_output)
                 d_loss_fake = bce_loss(fake_labels, fake_output)
                 d_loss = d_loss_real + d_loss_fake
                 
                 g_loss_GAN = bce_loss(real_labels, fake_output)
                 g_loss_L1 = mae_loss(real_images * (1 - masks), generated_images * (1 - masks))
-                g_loss = g_loss_GAN + 100 * g_loss_L1
-            
+                ssim_loss = tf.reduce_mean(1 - tf.image.ssim(real_images, generated_images, max_val=1.0))
+                g_loss_perceptual = perceptual_loss(real_images, generated_images)
+
+                g_loss = g_loss_GAN + 100 * g_loss_L1 + 10 * ssim_loss + 1 * g_loss_perceptual
+
             # Calculate Gradients
             gradients_of_generator = tape.gradient(g_loss, generator.trainable_variables)
             gradients_of_discriminator = tape.gradient(d_loss, discriminator.trainable_variables)
@@ -118,8 +140,8 @@ def train(dataset, epochs, dataset_name, generator=None, discriminator=None, tot
                 })
 
             # Save Checkpoints
-            generator.save(GENERATOR_PATH)
-            discriminator.save(DISCRIMINATOR_PATH)
+            if epoch % SAVE_INTERVAL == 0:
+                incremental_saver.save_models(generator, discriminator)
 
             end_time = time.time()
             epoch_duration = end_time - start_time
