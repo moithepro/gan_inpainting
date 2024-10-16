@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from utils import create_mask
 from Constants import *
+from utils import create_random_mask
 
 BUFFER_SIZE = 1000
 
@@ -67,7 +67,7 @@ def data_generator(dataset):
     for batch in dataset:
         images = batch[0]
         # Create masks
-        masks = tf.map_fn(lambda img: create_mask(IMAGE_SIZE, MASK_SIZE), images)
+        masks = tf.map_fn(lambda img: create_random_mask(IMAGE_SIZE,IMAGE_SIZE), images)
         # Apply masks
         masked_images = images * masks
         yield masked_images, images, masks

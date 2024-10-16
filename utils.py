@@ -1,25 +1,92 @@
+import cv2
+import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import Constants
 
 
-def create_mask(image_size, mask_size, fixed_position=None):
-    """
-    Creates a mask with a square region set to zero.
-    """
-    mask = tf.ones((image_size, image_size, 3), dtype=tf.float32)
-    if fixed_position:
-        x, y = fixed_position
-    else:
-        x = tf.random.uniform([], 0, image_size - mask_size + 1, dtype=tf.int32)
-        y = tf.random.uniform([], 0, image_size - mask_size + 1, dtype=tf.int32)
-    rows = tf.range(y, y + mask_size)
-    cols = tf.range(x, x + mask_size)
-    indices = tf.stack(tf.meshgrid(rows, cols, indexing='ij'), axis=-1)
-    indices = tf.reshape(indices, (-1, 2))
-    updates = tf.zeros((mask_size * mask_size, 3), dtype=tf.float32)
-    mask = tf.tensor_scatter_nd_update(mask, indices, updates)
+def create_small_mask(height, width, channels=3, mask_size_ratio=Constants.SQUARE_MASK_RATIO):
+    mask = np.zeros((height, width, channels))
+    mask_height = int(height * mask_size_ratio)
+    mask_width = int(width * mask_size_ratio)
+
+    x1, y1 = np.random.randint(0, width - mask_width), np.random.randint(0, height - mask_height)
+    x2, y2 = x1 + mask_width, y1 + mask_height
+    mask[y1:y2, x1:x2, :] = 1
     return mask
 
+
+def create_circular_mask(height, width, channels=3, radius_ratio=Constants.CIRCLE_MASK_RATIO):
+    mask = np.zeros((height, width, channels))
+    radius = int(min(height, width) * radius_ratio)
+    x_center, y_center = np.random.randint(radius, width - radius), np.random.randint(radius, height - radius)
+
+    y, x = np.ogrid[:height, :width]
+    mask_area = (x - x_center) ** 2 + (y - y_center) ** 2 <= radius ** 2
+    mask[mask_area] = 1
+    return mask
+
+
+def create_arbitrary_mask(height, width, channels=3, ratio=Constants.ARBITRARY_MASK_RATIO):
+    """
+    Creates an arbitrary polygonal mask on an image.
+
+    Parameters:
+    - height: The height of the image.
+    - width: The width of the image.
+    - channels: Number of channels in the image. Default is 3 (RGB).
+    - ratio: The proportion of the mask area to the image area. Default is 0.1 (10%).
+
+    Returns:
+    - mask: A mask with the same dimensions as the input, where the mask area is filled with ones.
+    """
+
+    # Initialize the mask with zeros
+    mask = np.zeros((height, width, channels))
+
+    # Determine the number of vertices for the polygon (between 3 and 10)
+    num_vertices = np.random.randint(3, 10)
+
+    # Generate random vertices for the polygon
+    vertices = [(np.random.randint(0, width), np.random.randint(0, height)) for _ in range(num_vertices)]
+    vertices = np.array(vertices, dtype=np.int32)
+
+    # Create a temporary mask to calculate the area of the polygon
+    temp_mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.fillPoly(temp_mask, [vertices], 1)
+
+    # Calculate the area of the polygon
+    polygon_area = np.sum(temp_mask)
+
+    # Calculate the desired mask area based on the ratio
+    total_area = height * width
+    desired_mask_area = total_area * ratio
+
+    # Adjust the vertices to match the desired mask area
+    scale_factor = np.sqrt(desired_mask_area / polygon_area)
+    vertices = vertices * scale_factor
+    vertices = np.clip(vertices, 0, [width - 1, height - 1])  # Ensure vertices stay within image bounds
+
+    # Redefine the vertices to integer values
+    vertices = vertices.astype(np.int32)
+
+    # Fill the polygon area in the mask
+    cv2.fillPoly(mask, [vertices], (1, 1, 1))
+
+    return mask
+
+
+def create_random_mask(height, width, channels=3):
+    mask_type = np.random.choice(['small', 'circular', 'arbitrary'])
+    mask = None
+    if mask_type == 'small':
+        mask = create_small_mask(height, width, channels)
+    elif mask_type == 'circular':
+        mask = create_circular_mask(height, width, channels)
+    elif mask_type == 'arbitrary':
+        mask = create_arbitrary_mask(height, width, channels)
+    # invert the mask before returning because I did an oopsie in the mask creation functions
+    return 1 - mask
 
 def apply_mask(image, mask):
     """

@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from Constants import *
-from utils import create_mask, apply_mask, plot_images
+from utils import create_square_mask, apply_mask, plot_images
 import matplotlib.pyplot as plt
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
@@ -55,9 +55,9 @@ def main():
         x = int(input())
         print(f"Enter y position (0 to {IMAGE_SIZE - mask_size}): ")
         y = int(input())
-        mask = create_mask(IMAGE_SIZE, mask_size, fixed_position=(x, y))
+        mask = create_square_mask(IMAGE_SIZE, mask_size, fixed_position=(x, y))
     else:
-        mask = create_mask(IMAGE_SIZE, mask_size)
+        mask = create_square_mask(IMAGE_SIZE, mask_size)
     
     mask = tf.expand_dims(mask, axis=0)  # Shape: (1, IMAGE_SIZE, IMAGE_SIZE, 3)
     
