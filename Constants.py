@@ -1,6 +1,6 @@
 EPOCHS = 50
 RESULTS_DIR = './results'
-MODELS_DIR = './oldModels'
+MODELS_DIR = './models'
 IMAGE_SIZE = 128
 INITIAL_LEARNING_RATE = 0.0002
 DECAY_RATE = 0.96

@@ -16,6 +16,16 @@ def create_small_mask(height, width, channels=3, mask_size_ratio=Constants.SQUAR
     return mask
 
 
+def create_small_mask(height, width, x, y, channels=3, mask_size_ratio=Constants.SQUARE_MASK_RATIO):
+    mask = np.zeros((height, width, channels))
+    mask_height = int(height * mask_size_ratio)
+    mask_width = int(width * mask_size_ratio)
+
+    x2, y2 = x + mask_width, y + mask_height
+    mask[y:y2, x:x2, :] = 1
+    return mask
+
+
 def create_circular_mask(height, width, channels=3, radius_ratio=Constants.CIRCLE_MASK_RATIO):
     mask = np.zeros((height, width, channels))
     radius = int(min(height, width) * radius_ratio)
@@ -87,6 +97,7 @@ def create_random_mask(height, width, channels=3):
         mask = create_arbitrary_mask(height, width, channels)
     # invert the mask before returning because I did an oopsie in the mask creation functions
     return 1 - mask
+
 
 def apply_mask(image, mask):
     """
