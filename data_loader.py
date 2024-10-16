@@ -35,9 +35,6 @@ def load_dataset(name):
         dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
     elif name == 'coco':
         dataset = tfds.load('coco/2017', split='train', as_supervised=False)
-        # take only 3000 images for now
-        dataset = dataset.take(3000)
-        print("taking only 3000 images")
         dataset = dataset.map(lambda x: (tf.image.resize(x['image'], [IMAGE_SIZE, IMAGE_SIZE]), x['image']))
     elif name == 'celeba':
         dataset = tfds.load('celeb_a', split='train', as_supervised=True)
@@ -45,6 +42,11 @@ def load_dataset(name):
     else:
         raise ValueError('Dataset not recognized.')
 
+    # Take only a subset of the dataset
+    if NUMBER_OF_IMAGES_TO_TAKE_FROM_DATASET is not None:
+        dataset = dataset.take(NUMBER_OF_IMAGES_TO_TAKE_FROM_DATASET)
+        print(f'Taking {NUMBER_OF_IMAGES_TO_TAKE_FROM_DATASET} images from the dataset.')
+    # Augment images
     # Normalize images to [-1, 1]
     dataset = dataset.map(lambda x, y: (x / 127.5 - 1, y))
     # Use image as both input and target + add a small value

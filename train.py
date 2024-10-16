@@ -20,12 +20,8 @@ def perceptual_loss(real_images, generated_images):
     vgg_outputs_real = vgg(real_images)
     vgg_outputs_fake = vgg(generated_images)
 
-    # Mask the features (only focus on masked areas)
-    masked_vgg_outputs_real = vgg_outputs_real
-    masked_vgg_outputs_fake = vgg_outputs_fake
-
     # Calculate perceptual loss over masked areas (L2 loss here)
-    return tf.reduce_mean(tf.square(masked_vgg_outputs_real - masked_vgg_outputs_fake))
+    return tf.reduce_mean(tf.square(vgg_outputs_real - vgg_outputs_fake))
 
 
 # Enable mixed precision (optional)
