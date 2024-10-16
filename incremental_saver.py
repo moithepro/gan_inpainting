@@ -11,8 +11,9 @@ def get_last_models():
     discriminators = [os.path.join(MODELS_DIR, f) for f in os.listdir(MODELS_DIR) if 'discriminator' in f]
     if len(generators) == 0 or len(discriminators) == 0:
         return None, None
-    last_generator = sorted(generators)[-1]
-    last_discriminator = sorted(discriminators)[-1]
+    # sort the models by the number in the name
+    last_generator = sorted(generators, key=lambda x: int(x.split('_')[-1].split('.')[0]))[-1]
+    last_discriminator = sorted(discriminators, key=lambda x: int(x.split('_')[-1].split('.')[0]))[-1]
     return last_generator, last_discriminator
 
 
