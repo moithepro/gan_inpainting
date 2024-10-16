@@ -16,18 +16,16 @@ vgg = VGG16(include_top=False, weights='imagenet', input_shape=(IMAGE_SIZE, IMAG
 
 
 def perceptual_loss(real_images, generated_images):
-    # Preprocess the images as expected by VGG19 (scaling and mean normalization)
-    real_images_preprocessed = tf.keras.applications.vgg19.preprocess_input(real_images)
-    generated_images_preprocessed = tf.keras.applications.vgg19.preprocess_input(generated_images)
+    # Extract features from the real and generated images using VGG16
+    vgg_outputs_real = vgg(real_images)
+    vgg_outputs_fake = vgg(generated_images)
 
-    # Extract features from multiple layers of VGG19
-    vgg_outputs_real = vgg(real_images_preprocessed)
-    vgg_outputs_fake = vgg(generated_images_preprocessed)
+    # Mask the features (only focus on masked areas)
+    masked_vgg_outputs_real = vgg_outputs_real
+    masked_vgg_outputs_fake = vgg_outputs_fake
 
-    # Compute the perceptual loss as the mean squared error between feature maps
-    perceptual_loss_value = tf.reduce_mean(tf.square(vgg_outputs_real - vgg_outputs_fake))
-
-    return perceptual_loss_value
+    # Calculate perceptual loss over masked areas (L2 loss here)
+    return tf.reduce_mean(tf.square(masked_vgg_outputs_real - masked_vgg_outputs_fake))
 
 
 # Enable mixed precision (optional)
@@ -82,8 +80,6 @@ def train(dataset, epochs, dataset_name, generator=None, discriminator=None, tot
             
             # Labels
             batch_size = tf.shape(masked_images)[0]
-            real_labels = tf.ones((batch_size, 1))
-            fake_labels = tf.zeros((batch_size, 1))
 
             with tf.GradientTape(persistent=True) as tape:
                 # Generator Forward Pass
@@ -109,10 +105,10 @@ def train(dataset, epochs, dataset_name, generator=None, discriminator=None, tot
                 
                 g_loss_GAN = bce_loss(real_labels, fake_output)
                 g_loss_L1 = mae_loss(real_images * (1 - masks), generated_images * (1 - masks))
-                ssim_loss = tf.reduce_mean(1 - tf.image.ssim(real_images, generated_images, max_val=1.0))
+                ssim_loss = tf.reduce_mean(1 - tf.image.ssim(real_images * masks, generated_images * masks, max_val=1.0))
                 g_loss_perceptual = perceptual_loss(real_images, generated_images)
 
-                g_loss = g_loss_GAN + 100 * g_loss_L1 + 10 * ssim_loss + 1 * g_loss_perceptual
+                g_loss = g_loss_GAN + 100 * g_loss_L1 + 10 * ssim_loss + 0.05 * g_loss_perceptual
 
             # Calculate Gradients
             gradients_of_generator = tape.gradient(g_loss, generator.trainable_variables)

@@ -1,6 +1,7 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
+
 def create_mask(image_size, mask_size, fixed_position=None):
     """
     Creates a mask with a square region set to zero.
@@ -15,15 +16,17 @@ def create_mask(image_size, mask_size, fixed_position=None):
     cols = tf.range(x, x + mask_size)
     indices = tf.stack(tf.meshgrid(rows, cols, indexing='ij'), axis=-1)
     indices = tf.reshape(indices, (-1, 2))
-    updates = tf.zeros((mask_size * mask_size, 3))
+    updates = tf.zeros((mask_size * mask_size, 3), dtype=tf.float32)
     mask = tf.tensor_scatter_nd_update(mask, indices, updates)
     return mask
+
 
 def apply_mask(image, mask):
     """
     Applies the mask to the image.
     """
     return image * mask
+
 
 def calculate_metrics(original, generated):
     """
@@ -38,6 +41,7 @@ def calculate_metrics(original, generated):
     psnr = tf.image.psnr(original, generated, max_val=1.0)
     return ssim.numpy(), psnr.numpy()
 
+
 def plot_images(masked, generated, original, save_path):
     """
     Plots and saves the masked, generated, and original images.
@@ -49,12 +53,12 @@ def plot_images(masked, generated, original, save_path):
         axes[0, i].axis('off')
         if i == 0:
             axes[0, i].set_title('Masked Image')
-        
+
         axes[1, i].imshow((generated[i] + 1) / 2)
         axes[1, i].axis('off')
         if i == 0:
             axes[1, i].set_title('Generated Image')
-        
+
         axes[2, i].imshow((original[i] + 1) / 2)
         axes[2, i].axis('off')
         if i == 0:

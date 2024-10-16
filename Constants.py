@@ -1,4 +1,4 @@
-EPOCHS = 850
+EPOCHS = 1000
 RESULTS_DIR = './results'
 MODELS_DIR = './models'
 IMAGE_SIZE = 128

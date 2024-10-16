@@ -35,9 +35,9 @@ def load_dataset(name):
         dataset = dataset.map(lambda x, y: (tf.image.resize(x, [IMAGE_SIZE, IMAGE_SIZE]), y))
     elif name == 'coco':
         dataset = tfds.load('coco/2017', split='train', as_supervised=False)
-        # take only 1000 images for now
-        dataset = dataset.take(1000)
-        print("taking only 1000 images")
+        # take only 3000 images for now
+        dataset = dataset.take(3000)
+        print("taking only 3000 images")
         dataset = dataset.map(lambda x: (tf.image.resize(x['image'], [IMAGE_SIZE, IMAGE_SIZE]), x['image']))
     elif name == 'celeba':
         dataset = tfds.load('celeb_a', split='train', as_supervised=True)
@@ -46,14 +46,12 @@ def load_dataset(name):
         raise ValueError('Dataset not recognized.')
 
     # Normalize images to [-1, 1]
-    dataset = dataset.map(lambda x, y: ((x / 127.5) - 1.0, y))
-
-    # Use image as both input and target
-    dataset = dataset.map(lambda x, y: (x, x))
+    dataset = dataset.map(lambda x, y: (x / 127.5 - 1, y))
+    # Use image as both input and target + add a small value
+    dataset = dataset.map(lambda x, y: (x + 0.0000001, x + 0.0000001))
 
     # Shuffle, batch, and prefetch
     dataset = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
-
     # Get total number of batches
     total_batches = tf.data.experimental.cardinality(dataset).numpy()
 
@@ -70,4 +68,4 @@ def data_generator(dataset):
         masks = tf.map_fn(lambda img: create_mask(IMAGE_SIZE, MASK_SIZE), images)
         # Apply masks
         masked_images = images * masks
-        yield (masked_images, images, masks)
+        yield masked_images, images, masks
