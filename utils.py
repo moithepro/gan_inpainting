@@ -13,17 +13,17 @@ def create_small_mask(height, width, channels=3, mask_size_ratio=Constants.SQUAR
     x1, y1 = np.random.randint(0, width - mask_width), np.random.randint(0, height - mask_height)
     x2, y2 = x1 + mask_width, y1 + mask_height
     mask[y1:y2, x1:x2, :] = 1
-    return mask
+    return 1 - mask
 
 
-def create_small_mask(height, width, x, y, channels=3, mask_size_ratio=Constants.SQUARE_MASK_RATIO):
+def create_small_mask_with_position(height, width, x, y, channels=3, mask_size_ratio=Constants.SQUARE_MASK_RATIO):
     mask = np.zeros((height, width, channels))
     mask_height = int(height * mask_size_ratio)
     mask_width = int(width * mask_size_ratio)
 
     x2, y2 = x + mask_width, y + mask_height
     mask[y:y2, x:x2, :] = 1
-    return mask
+    return 1 - mask
 
 
 def create_circular_mask(height, width, channels=3, radius_ratio=Constants.CIRCLE_MASK_RATIO):
@@ -34,7 +34,7 @@ def create_circular_mask(height, width, channels=3, radius_ratio=Constants.CIRCL
     y, x = np.ogrid[:height, :width]
     mask_area = (x - x_center) ** 2 + (y - y_center) ** 2 <= radius ** 2
     mask[mask_area] = 1
-    return mask
+    return 1 - mask
 
 
 def create_arbitrary_mask(height, width, channels=3, ratio=Constants.ARBITRARY_MASK_RATIO):
@@ -83,21 +83,66 @@ def create_arbitrary_mask(height, width, channels=3, ratio=Constants.ARBITRARY_M
     # Fill the polygon area in the mask
     cv2.fillPoly(mask, [vertices], (1, 1, 1))
 
-    return mask
+    return 1 - mask
 
 
-def create_random_mask(height, width, channels=3):
+def create_random_mask(height, width):
     mask_type = np.random.choice(['small', 'circular', 'arbitrary'])
     mask = None
     if mask_type == 'small':
-        mask = create_small_mask(height, width, channels)
+        mask = create_small_mask(height, width)
     elif mask_type == 'circular':
-        mask = create_circular_mask(height, width, channels)
+        mask = create_circular_mask(height, width)
     elif mask_type == 'arbitrary':
-        mask = create_arbitrary_mask(height, width, channels)
+        mask = create_arbitrary_mask(height, width)
     # invert the mask before returning because I did an oopsie in the mask creation functions
-    return 1 - mask
+    return mask
 
+
+def create_soft_mask(mask, blur_size=30):
+    """
+    Applies Gaussian blur to the binary mask to create a soft mask.
+
+    Parameters:
+    - mask: Binary mask (0 or 1) with the same dimensions as the image.
+    - blur_size: The size of the Gaussian kernel to create the soft edges.
+
+    Returns:
+    - soft_mask: A soft mask with values between 0 and 1.
+    """
+
+    # Convert TensorFlow tensor to NumPy array if necessary
+    if isinstance(mask, tf.Tensor):
+        mask = mask.numpy()
+
+    # Apply Gaussian blur to the mask
+    soft_mask = cv2.GaussianBlur(mask, (blur_size, blur_size), 0)
+
+    # Ensure the mask values are between 0 and 1
+    soft_mask = np.clip(soft_mask, 0, 1)
+
+    return soft_mask
+
+
+def blend_images(original_image, generated_image, soft_mask):
+    """
+    Blends the original and generated images using a soft mask.
+
+    Parameters:
+    - original_image: The original unmasked image.
+    - generated_image: The inpainted/generated image.
+    - soft_mask: The soft mask used for blending, values between 0 and 1.
+
+    Returns:
+    - blended_image: The blended image.
+    """
+    # Ensure the mask is applied to the right channels
+    soft_mask = np.expand_dims(soft_mask, axis=0)
+
+    # Blend the images using the soft mask
+    blended_image = original_image * soft_mask + generated_image * (1 - soft_mask)
+
+    return blended_image
 
 def apply_mask(image, mask):
     """

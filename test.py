@@ -1,8 +1,8 @@
 import tensorflow as tf
 
 import incremental_saver
+import utils
 from Constants import *
-from utils import apply_mask, plot_images, create_small_mask
 import matplotlib.pyplot as plt
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
@@ -64,8 +64,7 @@ def main():
 
     # Open file explorer to select an image
     Tk().withdraw()  # Close the root window
-    file_path = askopenfilename(title="Select an Image for Inpainting",
-                                filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.bmp")])
+    file_path = "free-images.jpg" # askopenfilename(title="Select an Image for Inpainting", filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.bmp")])
 
     if not file_path:
         print("No file selected.")
@@ -90,17 +89,25 @@ def main():
         x = int(input())
         print(f"Enter y position (0 to {IMAGE_SIZE - mask_size}): ")
         y = int(input())
-        mask = create_small_mask(IMAGE_SIZE, IMAGE_SIZE, x, y, mask_size_ratio=mask_size)
+        mask = utils.create_small_mask_with_position(IMAGE_SIZE, IMAGE_SIZE, x, y, mask_size_ratio=mask_size)
     else:
-        mask = create_small_mask(IMAGE_SIZE, IMAGE_SIZE, mask_size_ratio=mask_size)
+        mask = utils.create_small_mask(IMAGE_SIZE, IMAGE_SIZE, mask_size_ratio=mask_size)
 
+    # convert mask to float32
+    mask = tf.cast(mask, tf.float32)
+
+    soft_mask = utils.create_soft_mask(mask)  # Create a soft mask for blending before expanding dims
     mask = tf.expand_dims(mask, axis=0)  # Shape: (1, IMAGE_SIZE, IMAGE_SIZE, 3)
 
     # Apply the mask
-    masked_image = apply_mask(original_image, mask)
+    masked_image = utils.apply_mask(original_image, mask)
 
     # Generate the inpainted image
     generated_image = generator(masked_image, training=False)
+
+    # Blend the generated image with the original image
+
+    blended_image = utils.blend_images(original_image, generated_image, soft_mask)
 
     # Extract feature maps from encoder layers
     feature_maps = extract_feature_maps(generator, masked_image)
@@ -109,13 +116,14 @@ def main():
     masked_image_np = masked_image.numpy()
     generated_image_np = generated_image.numpy()
     original_image_np = original_image.numpy()
+    blended_image_np = blended_image.numpy()
 
     # Display the images
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    titles = ['Masked Image', 'Generated Image', 'Original Image']
-    images = [masked_image_np, generated_image_np, original_image_np]
+    fig, axes = plt.subplots(1, 4, figsize=(15, 5))
+    titles = ['Masked Image', 'Generated Image', 'Original Image', 'Generated Image after blending process']
+    images = [masked_image_np, generated_image_np, original_image_np, blended_image_np]
 
-    for i in range(3):
+    for i in range(4):
         axes[i].imshow((images[i][0] + 1) / 2)  # Rescale to [0,1]
         axes[i].set_title(titles[i])
         axes[i].axis('off')
