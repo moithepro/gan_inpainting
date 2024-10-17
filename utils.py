@@ -99,7 +99,7 @@ def create_random_mask(height, width):
     return mask
 
 
-def create_soft_mask(mask, blur_size=30):
+def create_soft_mask(mask, blur_size=45):
     """
     Applies Gaussian blur to the binary mask to create a soft mask.
 
