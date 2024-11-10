@@ -1,29 +1,155 @@
+import cv2
+import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import Constants
 
-def create_mask(image_size, mask_size, fixed_position=None):
+
+def create_small_mask(height, width, channels=3, mask_size_ratio=Constants.SQUARE_MASK_RATIO):
+    mask = np.zeros((height, width, channels))
+    mask_height = int(height * mask_size_ratio)
+    mask_width = int(width * mask_size_ratio)
+
+    x1, y1 = np.random.randint(0, width - mask_width), np.random.randint(0, height - mask_height)
+    x2, y2 = x1 + mask_width, y1 + mask_height
+    mask[y1:y2, x1:x2, :] = 1
+    return 1 - mask
+
+
+def create_small_mask_with_position(height, width, x, y, channels=3, mask_size_ratio=Constants.SQUARE_MASK_RATIO):
+    mask = np.zeros((height, width, channels))
+    mask_height = int(height * mask_size_ratio)
+    mask_width = int(width * mask_size_ratio)
+
+    x2, y2 = x + mask_width, y + mask_height
+    mask[y:y2, x:x2, :] = 1
+    return 1 - mask
+
+
+def create_circular_mask(height, width, channels=3, radius_ratio=Constants.CIRCLE_MASK_RATIO):
+    mask = np.zeros((height, width, channels))
+    radius = int(min(height, width) * radius_ratio)
+    x_center, y_center = np.random.randint(radius, width - radius), np.random.randint(radius, height - radius)
+
+    y, x = np.ogrid[:height, :width]
+    mask_area = (x - x_center) ** 2 + (y - y_center) ** 2 <= radius ** 2
+    mask[mask_area] = 1
+    return 1 - mask
+
+
+def create_arbitrary_mask(height, width, channels=3, ratio=Constants.ARBITRARY_MASK_RATIO):
     """
-    Creates a mask with a square region set to zero.
+    Creates an arbitrary polygonal mask on an image.
+
+    Parameters:
+    - height: The height of the image.
+    - width: The width of the image.
+    - channels: Number of channels in the image. Default is 3 (RGB).
+    - ratio: The proportion of the mask area to the image area. Default is 0.1 (10%).
+
+    Returns:
+    - mask: A mask with the same dimensions as the input, where the mask area is filled with ones.
     """
-    mask = tf.ones((image_size, image_size, 3), dtype=tf.float32)
-    if fixed_position:
-        x, y = fixed_position
-    else:
-        x = tf.random.uniform([], 0, image_size - mask_size + 1, dtype=tf.int32)
-        y = tf.random.uniform([], 0, image_size - mask_size + 1, dtype=tf.int32)
-    rows = tf.range(y, y + mask_size)
-    cols = tf.range(x, x + mask_size)
-    indices = tf.stack(tf.meshgrid(rows, cols, indexing='ij'), axis=-1)
-    indices = tf.reshape(indices, (-1, 2))
-    updates = tf.zeros((mask_size * mask_size, 3))
-    mask = tf.tensor_scatter_nd_update(mask, indices, updates)
+
+    # Initialize the mask with zeros
+    mask = np.zeros((height, width, channels))
+
+    # Determine the number of vertices for the polygon (between 3 and 10)
+    num_vertices = np.random.randint(3, 10)
+
+    # Generate random vertices for the polygon
+    vertices = [(np.random.randint(0, width), np.random.randint(0, height)) for _ in range(num_vertices)]
+    vertices = np.array(vertices, dtype=np.int32)
+
+    # Create a temporary mask to calculate the area of the polygon
+    temp_mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.fillPoly(temp_mask, [vertices], 1)
+
+    # Calculate the area of the polygon
+    polygon_area = np.sum(temp_mask)
+
+    # Calculate the desired mask area based on the ratio
+    total_area = height * width
+    desired_mask_area = total_area * ratio
+
+    # Adjust the vertices to match the desired mask area
+    scale_factor = np.sqrt(desired_mask_area / polygon_area)
+    vertices = vertices * scale_factor
+    vertices = np.clip(vertices, 0, [width - 1, height - 1])  # Ensure vertices stay within image bounds
+
+    # Redefine the vertices to integer values
+    vertices = vertices.astype(np.int32)
+
+    # Fill the polygon area in the mask
+    cv2.fillPoly(mask, [vertices], (1, 1, 1))
+
+    return 1 - mask
+
+
+def create_random_mask(height, width):
+    mask_type = np.random.choice(['small', 'circular', 'arbitrary'])
+    mask = None
+    if mask_type == 'small':
+        mask = create_small_mask(height, width)
+    elif mask_type == 'circular':
+        mask = create_circular_mask(height, width)
+    elif mask_type == 'arbitrary':
+        mask = create_arbitrary_mask(height, width)
+    # invert the mask before returning because I did an oopsie in the mask creation functions
     return mask
+
+
+def create_soft_mask(mask, blur_size=45):
+    """
+    Applies Gaussian blur to the binary mask to create a soft mask.
+
+    Parameters:
+    - mask: Binary mask (0 or 1) with the same dimensions as the image.
+    - blur_size: The size of the Gaussian kernel to create the soft edges.
+
+    Returns:
+    - soft_mask: A soft mask with values between 0 and 1.
+    """
+
+    # Convert TensorFlow tensor to NumPy array if necessary
+    if isinstance(mask, tf.Tensor):
+        mask = mask.numpy()
+
+    # Apply Gaussian blur to the mask
+    soft_mask = cv2.GaussianBlur(mask, (blur_size, blur_size), 0)
+
+    # Ensure the mask values are between 0 and 1
+    soft_mask = np.clip(soft_mask, 0, 1)
+
+    return soft_mask
+
+
+def blend_images(original_image, generated_image, soft_mask):
+    """
+    Blends the original and generated images using a soft mask.
+
+    Parameters:
+    - original_image: The original unmasked image.
+    - generated_image: The inpainted/generated image.
+    - soft_mask: The soft mask used for blending, values between 0 and 1.
+
+    Returns:
+    - blended_image: The blended image.
+    """
+    # Ensure the mask is applied to the right channels
+    soft_mask = np.expand_dims(soft_mask, axis=0)
+
+    # Blend the images using the soft mask
+    blended_image = original_image * soft_mask + generated_image * (1 - soft_mask)
+
+    return blended_image
 
 def apply_mask(image, mask):
     """
     Applies the mask to the image.
     """
     return image * mask
+
 
 def calculate_metrics(original, generated):
     """
@@ -38,6 +164,7 @@ def calculate_metrics(original, generated):
     psnr = tf.image.psnr(original, generated, max_val=1.0)
     return ssim.numpy(), psnr.numpy()
 
+
 def plot_images(masked, generated, original, save_path):
     """
     Plots and saves the masked, generated, and original images.
@@ -49,12 +176,12 @@ def plot_images(masked, generated, original, save_path):
         axes[0, i].axis('off')
         if i == 0:
             axes[0, i].set_title('Masked Image')
-        
+
         axes[1, i].imshow((generated[i] + 1) / 2)
         axes[1, i].axis('off')
         if i == 0:
             axes[1, i].set_title('Generated Image')
-        
+
         axes[2, i].imshow((original[i] + 1) / 2)
         axes[2, i].axis('off')
         if i == 0:

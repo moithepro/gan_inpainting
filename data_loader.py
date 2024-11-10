@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from utils import create_mask
 from Constants import *
+from utils import create_random_mask
 
 BUFFER_SIZE = 1000
 
@@ -42,15 +42,18 @@ def load_dataset(name):
     else:
         raise ValueError('Dataset not recognized.')
 
+    # Take only a subset of the dataset
+    if NUMBER_OF_IMAGES_TO_TAKE_FROM_DATASET is not None:
+        dataset = dataset.take(NUMBER_OF_IMAGES_TO_TAKE_FROM_DATASET)
+        print(f'Taking {NUMBER_OF_IMAGES_TO_TAKE_FROM_DATASET} images from the dataset.')
+    # Augment images
     # Normalize images to [-1, 1]
-    dataset = dataset.map(lambda x, y: ((x / 127.5) - 1.0, y))
-
-    # Use image as both input and target
-    dataset = dataset.map(lambda x, y: (x, x))
+    dataset = dataset.map(lambda x, y: (x / 127.5 - 1, y))
+    # Use image as both input and target + add a small value
+    dataset = dataset.map(lambda x, y: (x + 0.0000001, x + 0.0000001))
 
     # Shuffle, batch, and prefetch
     dataset = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
-
     # Get total number of batches
     total_batches = tf.data.experimental.cardinality(dataset).numpy()
 
@@ -64,7 +67,7 @@ def data_generator(dataset):
     for batch in dataset:
         images = batch[0]
         # Create masks
-        masks = tf.map_fn(lambda img: create_mask(IMAGE_SIZE, MASK_SIZE), images)
+        masks = tf.map_fn(lambda img: create_random_mask(IMAGE_SIZE,IMAGE_SIZE), images)
         # Apply masks
         masked_images = images * masks
-        yield (masked_images, images, masks)
+        yield masked_images, images, masks

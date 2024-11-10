@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
 
+import incremental_saver
 
 gpus = tf.config.list_physical_devices('GPU')
 print(gpus)
@@ -29,10 +30,15 @@ if not os.path.exists(RESULTS_DIR):
 
 
 # Initialize or load models
-if os.path.exists(GENERATOR_PATH) and os.path.exists(DISCRIMINATOR_PATH):
+
+generator_path, discriminator_path = incremental_saver.get_last_models()
+
+if generator_path is not None and discriminator_path is not None:
     print("Loading pre-trained models...")
-    generator = tf.keras.models.load_model(GENERATOR_PATH)
-    discriminator = tf.keras.models.load_model(DISCRIMINATOR_PATH)
+    print(f"Generator: {generator_path}")
+    print(f"Discriminator: {discriminator_path}")
+    generator = tf.keras.models.load_model(generator_path)
+    discriminator = tf.keras.models.load_model(discriminator_path)
 else:
     print("Initializing new models...")
     generator = build_generator()
@@ -46,9 +52,8 @@ for dataset_name in datasets:
     dataset, total_batches = load_dataset(dataset_name)
     generator, discriminator = train(dataset, EPOCHS, dataset_name, generator, discriminator, total_batches)
 
-
+# 44
 # Save the trained models
 print("\nSaving the trained models...")
-generator.save(GENERATOR_PATH)
-discriminator.save(DISCRIMINATOR_PATH)
+incremental_saver.save_models(generator, discriminator)
 print("Models saved successfully.")
