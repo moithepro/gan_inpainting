@@ -64,7 +64,7 @@ def main():
 
     # Open file explorer to select an image
     Tk().withdraw()  # Close the root window
-    file_path = "free-images.jpg" # askopenfilename(title="Select an Image for Inpainting", filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.bmp")])
+    file_path = askopenfilename(title="Select an Image for Inpainting", filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.bmp")])
 
     if not file_path:
         print("No file selected.")
