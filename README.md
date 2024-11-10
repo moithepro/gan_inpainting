@@ -1,6 +1,7 @@
 # Image Inpainting GAN
 
 ## Overview
+![unnamed](https://github.com/user-attachments/assets/1b9e5853-baa3-47c0-bc97-6994d0cfea16)
 
 This project is an implementation of an image inpainting Generative Adversarial Network (GAN) designed to reconstruct missing or masked areas of images. The project utilizes TensorFlow's Keras to build and train a GAN that can generate realistic image patches to fill in masked regions, supporting multiple well-known datasets, including MNIST, CIFAR-10, CelebA, and more.
 
